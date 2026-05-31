@@ -1,0 +1,134 @@
+[project]
+name = "aggregator"
+version = "0.1.0"
+description = "Aggregator for multiple Raspberry Pi Picos for a dumb smart home"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+authors = [
+    { name = "Otto Sellerstam", email = "otto@sellerstam.com" },
+]
+dependencies = [
+    "structlog>=24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aggregator"]
+
+# ── Development dependencies ────────────────────────────────────────────
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "pyrefly>=0.53",
+    "pre-commit>=4.0",
+]
+docs = [
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.27",
+    "mkdocs-gen-files>=0.5",
+    "mkdocs-literate-nav>=0.6",
+]
+
+# ── Ruff ────────────────────────────────────────────────────────────────
+# All rules enabled. We selectively ignore rules that conflict or are
+# impractical. Run `ruff rule <CODE>` to understand any rule.
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "tests"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # ── Conflicts with Ruff formatter ──
+    "W191",   # tab indentation (formatter handles this)
+    "E111",   # indentation not multiple of X (formatter)
+    "E114",   # indentation not multiple of X (comment) (formatter)
+    "E117",   # over-indented (formatter)
+    "D206",   # docstring indent (formatter)
+    "D300",   # triple single quotes (formatter)
+    "Q000",   # bad quotes inline (formatter)
+    "Q001",   # bad quotes multiline (formatter)
+    "Q002",   # bad quotes docstring (formatter)
+    "Q003",   # avoidable escaped quote (formatter)
+    "COM812", # missing trailing comma (formatter)
+    "COM819", # prohibited trailing comma (formatter)
+    "ISC002", # multi line implicit string concat (formatter)
+
+    # ── Docstring style conflicts (pick ONE: we use Google style) ──
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D213",   # multi-line-summary-second-line (conflicts with D212)
+
+    # ── Too noisy / opinionated for most projects ──
+    "D100",   # missing docstring in public module
+    "D104",   # missing docstring in public package
+    "D107",   # missing docstring in __init__
+    "TD003",  # missing issue link in TODO
+    "FIX002", # line contains TODO (we allow TODOs)
+    "ERA001", # commented-out code (too many false positives)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "D",       # no docstrings required in tests
+    "ANN",     # no type annotations required in tests
+    "PLR2004", # allow magic values in tests
+    "S101",    # assert is fine in tests
+    "ARG",     # unused arguments (fixtures)
+    "FBT",     # booleans as positional args (test parametrize)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["aggregator"]
+
+# ── Pyrefly ─────────────────────────────────────────────────────────────
+
+[tool.pyrefly]
+project-includes = ["src/**/*.py", "tests/**/*.py"]
+search-path = ["src"]
+
+[tool.pyrefly.errors]
+unannotated-return = true
+missing-override-decorator = true
+
+# ── Pytest ──────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--import-mode=importlib",
+]
+
+# ── Coverage ────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["aggregator"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@overload",
+    "@abstractmethod",
+    "raise NotImplementedError",
+    "raise AssertionError",
+]

@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 0.3.8
+_src_path: gh:otto-sellerstam/bonfire
+author_email: otto@sellerstam.com
+author_name: Otto Sellerstam
+description: Aggregator for multiple Raspberry Pi Picos for a dumb smart home
+include_github_actions: true
+license: MIT
+module_name: aggregator
+project_name: aggregator
+project_type: standalone
+python_version: '3.14'
