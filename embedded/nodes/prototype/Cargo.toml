@@ -5,3 +5,17 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+cortex-m.workspace = true
+cortex-m-rt.workspace = true
+defmt.workspace = true
+defmt-rtt.workspace = true
+embassy-executor.workspace = true
+embassy-net.workspace = true
+embassy-rp.workspace = true
+embassy-sync.workspace = true
+embassy-time.workspace = true
+embedded-io-async.workspace = true
+log.workspace = true
+panic-probe.workspace = true
+portable-atomic.workspace = true
+swarm-lib = { version = "0.1.0", path = "../../lib" }

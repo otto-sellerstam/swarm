@@ -5,3 +5,14 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+defmt-rtt.workspace = true
+panic-probe.workspace = true
+cyw43.workspace = true
+cyw43-pio.workspace = true
+embassy-executor.workspace = true
+embassy-net.workspace = true
+embassy-rp.workspace = true
+embassy-time.workspace = true
+embassy-usb-logger.workspace = true
+log.workspace = true
+static_cell.workspace = true
