@@ -29,8 +29,8 @@ fn main() {
     // `memory.x` is changed.
     println!("cargo:rerun-if-changed=memory.x");
 
-    println!("cargo:rustc-link-arg-bins=--nmagic");
-    println!("cargo:rustc-link-arg-bins=-Tlink.x");
-    println!("cargo:rustc-link-arg-bins=-Tlink-rp.x");
-    println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
+    // NOTE: linker args (--nmagic, -Tlink.x, -Tlink-rp.x, -Tdefmt.x) are set in
+    // .cargo/config.toml. They must be declared in exactly one place and in this
+    // order; declaring -Tlink.x in two places, or omitting -Tlink-rp.x, breaks
+    // placement of the .boot2 second-stage bootloader at 0x10000000.
 }

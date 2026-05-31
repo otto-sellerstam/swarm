@@ -89,9 +89,6 @@ async fn initialize_network(
     control: &mut Control<'static>,
     net_device: NetDriver<'static>,
 ) -> Stack<'static> {
-    let ssid = "Tele2_ffae24";
-    let password = "ywm4mtzj";
-
     let config = Config::dhcpv4(Default::default());
 
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
