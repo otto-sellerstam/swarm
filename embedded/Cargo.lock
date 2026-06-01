@@ -1195,16 +1195,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "panic-probe"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd402d00b0fb94c5aee000029204a46884b1262e0c443f166d86d2c0747e1a1a"
-dependencies = [
- "cortex-m",
- "defmt 1.1.0",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1373,7 +1363,6 @@ dependencies = [
  "embassy-time",
  "embedded-io-async 0.7.0",
  "log",
- "panic-probe",
  "portable-atomic",
  "swarm-lib",
 ]
@@ -1673,8 +1662,10 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 name = "swarm-lib"
 version = "0.1.0"
 dependencies = [
+ "cortex-m",
  "cyw43",
  "cyw43-pio",
+ "defmt 1.1.0",
  "defmt-rtt",
  "embassy-executor",
  "embassy-net",
@@ -1682,7 +1673,6 @@ dependencies = [
  "embassy-time",
  "embassy-usb-logger",
  "log",
- "panic-probe",
  "static_cell",
 ]
 

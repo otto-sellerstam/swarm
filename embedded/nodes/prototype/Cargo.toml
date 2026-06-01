@@ -16,6 +16,5 @@ embassy-sync.workspace = true
 embassy-time.workspace = true
 embedded-io-async.workspace = true
 log.workspace = true
-panic-probe.workspace = true
 portable-atomic.workspace = true
 swarm-lib = { version = "0.1.0", path = "../../lib" }

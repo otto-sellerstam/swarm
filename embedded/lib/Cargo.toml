@@ -5,8 +5,9 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+cortex-m.workspace = true
+defmt.workspace = true
 defmt-rtt.workspace = true
-panic-probe.workspace = true
 cyw43.workspace = true
 cyw43-pio.workspace = true
 embassy-executor.workspace = true

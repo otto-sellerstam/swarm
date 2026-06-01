@@ -2,6 +2,7 @@
 #![no_main]
 
 use defmt::*;
+use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_net::{Stack, tcp::TcpSocket};
 use embassy_rp::gpio::{Level, Output};
@@ -11,7 +12,6 @@ use embassy_time::Duration;
 use embedded_io_async::Write;
 use log::info;
 use swarm_lib::{Cyw43Pins, init_usb_logger, initialize_wifi_and_network, setup_bootsel_button};
-use {defmt_rtt as _, panic_probe as _};
 
 static BUS: PubSubChannel<CriticalSectionRawMutex, CommandEvent, 4, 3, 1> = PubSubChannel::new();
 

@@ -3,6 +3,7 @@
 
 use cyw43::{Control, JoinOptions, NetDriver, aligned_bytes};
 use cyw43_pio::{DEFAULT_CLOCK_DIVIDER, PioSpi};
+use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_net::{Config, Stack, StackResources};
 use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
@@ -11,9 +12,18 @@ use embassy_rp::pio::{InterruptHandler, Pio};
 use embassy_rp::usb::{Driver, InterruptHandler as UsbInterruptHandler};
 use embassy_rp::{Peri, bind_interrupts, dma, rom_data};
 use embassy_time::{Duration, Timer};
-use log::info;
+use log::{error, info};
 use static_cell::StaticCell;
-use {defmt_rtt as _, panic_probe as _};
+
+mod panic_impl {
+    #[panic_handler]
+    fn panic(_info: &core::panic::PanicInfo) -> ! {
+        embassy_rp::rom_data::reset_to_usb_boot(0, 0);
+        loop {
+            cortex_m::asm::nop();
+        }
+    }
+}
 
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
@@ -99,10 +109,24 @@ async fn initialize_network(
 
     spawner.spawn(net_task(runner).unwrap());
 
-    control
-        .join(ssid, JoinOptions::new(password.as_bytes()))
-        .await
-        .unwrap();
+    loop {
+        match control
+            .join(
+                ENV_CONFIG.wifi_ssid,
+                JoinOptions::new(ENV_CONFIG.wifi_password.as_bytes()),
+            )
+            .await
+        {
+            Ok(_) => {
+                info!("Joined WiFi");
+                break;
+            }
+            Err(err) => {
+                error!("Failed to join WiFi: {:?}", err);
+                Timer::after(Duration::from_secs(2)).await;
+            }
+        };
+    }
 
     // Wait for DHCP
     loop {
@@ -149,3 +173,13 @@ pub fn init_usb_logger(spawner: &Spawner, usb: Peri<'static, USB>) {
     let usb_driver = Driver::new(usb, Irqs);
     spawner.spawn(logger_task(usb_driver).unwrap());
 }
+
+struct EnvConfig {
+    wifi_ssid: &'static str,
+    wifi_password: &'static str,
+}
+
+const ENV_CONFIG: EnvConfig = EnvConfig {
+    wifi_ssid: env!("WIFI_SSID"),
+    wifi_password: env!("WIFI_PASSWORD"),
+};
