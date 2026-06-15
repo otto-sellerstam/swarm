@@ -1,66 +1,81 @@
+set windows-powershell := true
+
 # List available recipes (default when running `just`)
 default:
     @just --list
 
+### Rust ################################################################
+
+[working-directory: './embedded']
+flash bin:
+    cargo run --bin {{bin}} --release
+
 ### Setup ###############################################################
 
 # Install dependencies (dev included)
-install:
+[working-directory: './aggregator']
+pyinstall:
     uv sync
 
 # Install pre-commit hooks and sync dependencies
-setup: install
+[working-directory: './aggregator']
+setup: pyinstall
     uv run pre-commit install
 
 ### Code Quality ########################################################
 
 # Run Ruff linter
-lint:
+[working-directory: './aggregator']
+pylint:
     uv run ruff check .
 
 # Run Ruff linter with auto-fix
-lint-fix:
+[working-directory: './aggregator']
+pylint-fix:
     uv run ruff check --fix .
 
 # Format code with Ruff
-format:
+[working-directory: './aggregator']
+pyformat:
     uv run ruff format .
 
 # Check formatting without changes
-format-check:
+[working-directory: './aggregator']
+pyformat-check:
     uv run ruff format --check .
 
 # Run Pyrefly type checker
-typecheck:
+[working-directory: './aggregator']
+pytypecheck:
     uv run pyrefly check
 
 ### Testing #############################################################
 
 # Run tests
-test:
+[working-directory: './aggregator']
+pytest:
     uv run pytest
 
 # Run tests with coverage
-test-cov:
+[working-directory: './aggregator']
+pytest-cov:
     uv run pytest --cov=src/aggregator --cov-report=term-missing --cov-report=html
 
 # Run tests with verbose output
-test-verbose:
+[working-directory: './aggregator']
+pytest-verbose:
     uv run pytest -v
-
-### Combined ############################################################
-
-# Run all checks (lint + format-check + typecheck + test)
-check: lint format-check typecheck test
 
 ### Docs ###############################################################
 
 # Build documentation
-docs:
+[working-directory: './aggregator']
+pydocs:
     uv run --group docs mkdocs build
 
 # Serve documentation with live reload
-docs-serve:
+[working-directory: './aggregator']
+pydocs-serve:
     uv run --group docs mkdocs serve -a localhost:8001
 
 ### Maintenance ########################################################

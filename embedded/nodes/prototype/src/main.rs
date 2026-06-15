@@ -11,7 +11,10 @@ use embassy_sync::pubsub::{PubSubChannel, WaitResult};
 use embassy_time::Duration;
 use embedded_io_async::Write;
 use log::info;
-use swarm_lib::{Cyw43Pins, init_usb_logger, initialize_wifi_and_network, setup_bootsel_button};
+use swarm_lib::network::{Cyw43Pins, initialize_wifi_and_network};
+use swarm_lib::sensors::ky_040::{Event as RotaryEvent, RotaryEncoder};
+use swarm_lib::setup_bootsel_button;
+use swarm_lib::usb::init_usb_logger;
 
 static BUS: PubSubChannel<CriticalSectionRawMutex, CommandEvent, 4, 3, 1> = PubSubChannel::new();
 
@@ -21,6 +24,18 @@ enum CommandEvent {
     Off,
 }
 
+#[embassy_executor::task]
+async fn rotary_fun(mut ky_040: RotaryEncoder) {
+    loop {
+        match ky_040.next_event().await {
+            RotaryEvent::PressDown => info!("PressDown"),
+            RotaryEvent::PressUp => info!("PressUp"),
+            RotaryEvent::RotationClockwise => info!("RotationClockwise"),
+            RotaryEvent::RotationAntiClockwise => info!("RotationAntiClockwise"),
+        }
+    }
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
@@ -28,7 +43,7 @@ async fn main(spawner: Spawner) {
     let led_pin = Output::new(p.PIN_12, Level::Low);
 
     init_usb_logger(&spawner, p.USB);
-    setup_bootsel_button(&spawner, p.PIN_16);
+    //setup_bootsel_button(&spawner, p.PIN_16);
 
     let (_control, stack) = initialize_wifi_and_network(
         &spawner,
@@ -46,6 +61,9 @@ async fn main(spawner: Spawner) {
 
     spawner.spawn(tcp_server(stack).unwrap());
     spawner.spawn(handle_led(led_pin).unwrap());
+
+    let ky_040 = RotaryEncoder::new(p.PIN_19, p.PIN_18, p.PIN_16);
+    spawner.spawn(rotary_fun(ky_040).unwrap());
 }
 
 fn get_event_from_waitresult(wait_result: WaitResult<CommandEvent>) -> CommandEvent {

@@ -17,3 +17,4 @@ embassy-time.workspace = true
 embassy-usb-logger.workspace = true
 log.workspace = true
 static_cell.workspace = true
+embassy-futures.workspace = true
