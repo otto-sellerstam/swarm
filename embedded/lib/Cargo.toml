@@ -18,3 +18,6 @@ embassy-usb-logger.workspace = true
 log.workspace = true
 static_cell.workspace = true
 embassy-futures.workspace = true
+fixed.workspace = true
+pio.workspace = true
+pio-proc.workspace = true

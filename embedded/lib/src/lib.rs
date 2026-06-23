@@ -4,10 +4,7 @@
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::{Input, Pin, Pull};
-use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, PIO0, USB};
-use embassy_rp::pio::InterruptHandler;
-use embassy_rp::usb::InterruptHandler as UsbInterruptHandler;
-use embassy_rp::{Peri, bind_interrupts, dma, rom_data};
+use embassy_rp::{Peri, rom_data};
 
 pub mod config;
 pub mod network;
@@ -23,12 +20,6 @@ mod panic_impl {
         }
     }
 }
-
-bind_interrupts!(pub(crate) struct Irqs {
-    PIO0_IRQ_0 => InterruptHandler<PIO0>;
-    DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>, dma::InterruptHandler<DMA_CH1>;
-    USBCTRL_IRQ => UsbInterruptHandler<USB>;
-});
 
 #[embassy_executor::task]
 async fn bootsel_task(mut bootsel_button_pin: Input<'static>) {

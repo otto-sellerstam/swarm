@@ -5,7 +5,15 @@ use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_net::{Stack, tcp::TcpSocket};
+use embassy_rp::bind_interrupts;
+use embassy_rp::dma;
+use embassy_rp::dma::InterruptHandler as DmaInterruptHandler;
 use embassy_rp::gpio::{Level, Output};
+use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, PIO0, PIO1, USB};
+use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
+use embassy_rp::pio::Pio;
+use embassy_rp::usb::Driver;
+use embassy_rp::usb::InterruptHandler as UsbInterruptHandler;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::pubsub::{PubSubChannel, WaitResult};
 use embassy_time::Duration;
@@ -13,8 +21,14 @@ use embedded_io_async::Write;
 use log::info;
 use swarm_lib::network::{Cyw43Pins, initialize_wifi_and_network};
 use swarm_lib::sensors::ky_040::{Event as RotaryEvent, RotaryEncoder};
-use swarm_lib::setup_bootsel_button;
 use swarm_lib::usb::init_usb_logger;
+
+bind_interrupts!(struct Irqs {
+    PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
+    PIO1_IRQ_0 => PioInterruptHandler<PIO1>;
+    DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>, DmaInterruptHandler<DMA_CH1>;
+    USBCTRL_IRQ => UsbInterruptHandler<USB>;
+});
 
 static BUS: PubSubChannel<CriticalSectionRawMutex, CommandEvent, 4, 3, 1> = PubSubChannel::new();
 
@@ -24,8 +38,41 @@ enum CommandEvent {
     Off,
 }
 
-#[embassy_executor::task]
-async fn rotary_fun(mut ky_040: RotaryEncoder) {
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let p = embassy_rp::init(Default::default());
+
+    let led_pin = Output::new(p.PIN_12, Level::Low);
+
+    init_usb_logger(&spawner, Driver::new(p.USB, Irqs));
+    //setup_bootsel_button(&spawner, p.PIN_16);
+
+    let pio = Pio::new(p.PIO0, Irqs);
+    let dma_ch = dma::Channel::new(p.DMA_CH0, Irqs);
+
+    let (_control, stack) = initialize_wifi_and_network(
+        &spawner,
+        pio.common,
+        pio.sm0,
+        pio.irq0,
+        dma_ch,
+        Cyw43Pins {
+            pin_pwr: p.PIN_23,
+            pin_cs: p.PIN_25,
+            pin_dio: p.PIN_24,
+            pin_clk: p.PIN_29,
+        },
+    )
+    .await;
+
+    spawner.spawn(tcp_server(stack).unwrap());
+    spawner.spawn(handle_led(led_pin).unwrap());
+
+    let Pio {
+        mut common, sm0, ..
+    } = Pio::new(p.PIO1, Irqs);
+
+    let mut ky_040 = RotaryEncoder::new(&mut common, sm0, p.PIN_14, p.PIN_15, p.PIN_16);
     loop {
         match ky_040.next_event().await {
             RotaryEvent::PressDown => info!("PressDown"),
@@ -34,36 +81,6 @@ async fn rotary_fun(mut ky_040: RotaryEncoder) {
             RotaryEvent::RotationAntiClockwise => info!("RotationAntiClockwise"),
         }
     }
-}
-
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    let p = embassy_rp::init(Default::default());
-
-    let led_pin = Output::new(p.PIN_12, Level::Low);
-
-    init_usb_logger(&spawner, p.USB);
-    //setup_bootsel_button(&spawner, p.PIN_16);
-
-    let (_control, stack) = initialize_wifi_and_network(
-        &spawner,
-        Cyw43Pins {
-            pin_pwr: p.PIN_23,
-            pin_cs: p.PIN_25,
-            pin_pio: p.PIO0,
-            pin_dio: p.PIN_24,
-            pin_clk: p.PIN_29,
-            pin_dma_tx: p.DMA_CH0,
-            pin_dma_rx: p.DMA_CH1,
-        },
-    )
-    .await;
-
-    spawner.spawn(tcp_server(stack).unwrap());
-    spawner.spawn(handle_led(led_pin).unwrap());
-
-    let ky_040 = RotaryEncoder::new(p.PIN_19, p.PIN_18, p.PIN_16);
-    spawner.spawn(rotary_fun(ky_040).unwrap());
 }
 
 fn get_event_from_waitresult(wait_result: WaitResult<CommandEvent>) -> CommandEvent {
