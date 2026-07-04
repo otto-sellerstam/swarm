@@ -21,3 +21,5 @@ embassy-futures.workspace = true
 fixed.workspace = true
 pio.workspace = true
 pio-proc.workspace = true
+embedded-hal-async.workspace = true
+embedded-graphics.workspace = true

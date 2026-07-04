@@ -9,18 +9,32 @@ use embassy_rp::bind_interrupts;
 use embassy_rp::dma;
 use embassy_rp::dma::InterruptHandler as DmaInterruptHandler;
 use embassy_rp::gpio::{Level, Output};
+use embassy_rp::i2c::{self, Config as I2cConfig};
+use embassy_rp::peripherals::I2C0;
 use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, PIO0, PIO1, USB};
 use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
 use embassy_rp::pio::Pio;
+use embassy_rp::rom_data;
 use embassy_rp::usb::Driver;
 use embassy_rp::usb::InterruptHandler as UsbInterruptHandler;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::pubsub::{PubSubChannel, WaitResult};
 use embassy_time::Duration;
+use embedded_graphics::Drawable;
+use embedded_graphics::geometry::Point;
+use embedded_graphics::geometry::Size;
+use embedded_graphics::pixelcolor::BinaryColor;
+use embedded_graphics::prelude::Primitive;
+use embedded_graphics::{
+    mono_font::{MonoTextStyle, ascii::FONT_6X10},
+    primitives::{Circle, PrimitiveStyle, Rectangle, Triangle},
+    text::Text,
+};
 use embedded_io_async::Write;
 use log::info;
 use swarm_lib::network::{Cyw43Pins, initialize_wifi_and_network};
-use swarm_lib::sensors::ky_040::{Event as RotaryEvent, RotaryEncoder};
+use swarm_lib::sensors::ky_040::{Event as RotaryEvent, Ky040};
+use swarm_lib::sensors::ssd1306::Ssd1306;
 use swarm_lib::usb::init_usb_logger;
 
 bind_interrupts!(struct Irqs {
@@ -28,6 +42,7 @@ bind_interrupts!(struct Irqs {
     PIO1_IRQ_0 => PioInterruptHandler<PIO1>;
     DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>, DmaInterruptHandler<DMA_CH1>;
     USBCTRL_IRQ => UsbInterruptHandler<USB>;
+    I2C0_IRQ => i2c::InterruptHandler<I2C0>;
 });
 
 static BUS: PubSubChannel<CriticalSectionRawMutex, CommandEvent, 4, 3, 1> = PubSubChannel::new();
@@ -65,22 +80,54 @@ async fn main(spawner: Spawner) {
     )
     .await;
 
+    info!("Spawning server");
+
     spawner.spawn(tcp_server(stack).unwrap());
     spawner.spawn(handle_led(led_pin).unwrap());
 
-    let Pio {
-        mut common, sm0, ..
-    } = Pio::new(p.PIO1, Irqs);
+    info!("Spawned server");
+    info!("Setting up I2C");
+    let i2c = i2c::I2c::new_async(p.I2C0, p.PIN_17, p.PIN_16, Irqs, I2cConfig::default());
 
-    let mut ky_040 = RotaryEncoder::new(&mut common, sm0, p.PIN_14, p.PIN_15, p.PIN_16);
-    loop {
-        match ky_040.next_event().await {
-            RotaryEvent::PressDown => info!("PressDown"),
-            RotaryEvent::PressUp => info!("PressUp"),
-            RotaryEvent::RotationClockwise => info!("RotationClockwise"),
-            RotaryEvent::RotationAntiClockwise => info!("RotationAntiClockwise"),
-        }
-    }
+    let mut display = Ssd1306::new(i2c);
+    match display.init().await {
+        Ok(_) => {}
+        Err(error) => info!("An error occurred: {:?}", error),
+    };
+
+    display.clear();
+    let on = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
+
+    Rectangle::new(Point::new(0, 0), Size::new(128, 64))
+        .into_styled(on)
+        .draw(&mut display)
+        .unwrap();
+
+    let text_style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
+    Text::new("Nasha is a cutie!", Point::new(6, 24), text_style)
+        .draw(&mut display)
+        .unwrap();
+
+    let fill = PrimitiveStyle::with_fill(BinaryColor::On);
+
+    // Two lobes. NOTE: Circle::new takes the bounding-box TOP-LEFT + diameter,
+    // not the center — the single most common embedded-graphics gotcha.
+    Circle::new(Point::new(42, 30), 12)
+        .into_styled(fill)
+        .draw(&mut display)
+        .unwrap();
+    Circle::new(Point::new(54, 30), 12)
+        .into_styled(fill)
+        .draw(&mut display)
+        .unwrap();
+
+    // Bottom point: top edge spans the lobes' widest line, apex at the tip.
+    Triangle::new(Point::new(42, 36), Point::new(66, 36), Point::new(54, 52))
+        .into_styled(fill)
+        .draw(&mut display)
+        .unwrap();
+
+    display.flush().await.unwrap();
 }
 
 fn get_event_from_waitresult(wait_result: WaitResult<CommandEvent>) -> CommandEvent {

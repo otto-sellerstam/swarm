@@ -10,7 +10,7 @@ use embassy_rp::pio::{
 use embassy_time::{Duration, Timer};
 use fixed::traits::ToFixed;
 
-pub struct RotaryEncoder<'d, P: Instance, const SM: usize> {
+pub struct Ky040<'d, P: Instance, const SM: usize> {
     sm: StateMachine<'d, P, SM>,
     sw_input: Input<'d>,
     state: State,
@@ -87,7 +87,7 @@ const BEN_BUXTON_TABLE: [[(State, Direction); 4]; 7] = [
     ],
 ];
 
-impl<'d, P: Instance, const SM: usize> RotaryEncoder<'d, P, SM> {
+impl<'d, P: Instance, const SM: usize> Ky040<'d, P, SM> {
     pub fn new(
         common: &mut Common<'d, P>,
         mut sm: StateMachine<'d, P, SM>,
