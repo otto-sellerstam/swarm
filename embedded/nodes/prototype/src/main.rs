@@ -20,6 +20,7 @@ use embassy_rp::usb::InterruptHandler as UsbInterruptHandler;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::pubsub::{PubSubChannel, WaitResult};
 use embassy_time::Duration;
+use embassy_time::Timer;
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::geometry::Size;
@@ -33,6 +34,7 @@ use embedded_graphics::{
 use embedded_io_async::Write;
 use log::info;
 use swarm_lib::network::{Cyw43Pins, initialize_wifi_and_network};
+use swarm_lib::sensors::bme280::{Bme280, Measurement};
 use swarm_lib::sensors::ky_040::{Event as RotaryEvent, Ky040};
 use swarm_lib::sensors::ssd1306::Ssd1306;
 use swarm_lib::usb::init_usb_logger;
@@ -87,47 +89,66 @@ async fn main(spawner: Spawner) {
 
     info!("Spawned server");
     info!("Setting up I2C");
-    let i2c = i2c::I2c::new_async(p.I2C0, p.PIN_17, p.PIN_16, Irqs, I2cConfig::default());
+    let mut i2c = i2c::I2c::new_async(p.I2C0, p.PIN_17, p.PIN_16, Irqs, I2cConfig::default());
 
-    let mut display = Ssd1306::new(i2c);
-    match display.init().await {
-        Ok(_) => {}
-        Err(error) => info!("An error occurred: {:?}", error),
-    };
+    let bme280 = Bme280::init(&mut i2c).await;
+    match bme280 {
+        Ok(mut bme280) => loop {
+            match bme280.read().await {
+                Ok(meas) => {
+                    info!(
+                        "Measurement in! \n temp: {:?} \n press: {:?} \n hum: {:?}",
+                        meas.temp / 100,
+                        meas.pressure / 256,
+                        meas.humidity / 1024,
+                    );
+                }
+                Err(error) => info!("An error occurred when measuring: {:?}", error),
+            }
+            Timer::after(Duration::from_secs(1)).await;
+        },
+        Err(error) => info!("BME280: An error occurred - {:?}", error),
+    }
 
-    display.clear();
-    let on = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
+    //let mut display = Ssd1306::new(i2c);
+    //match display.init().await {
+    //    Ok(_) => {}
+    //    Err(error) => info!("An error occurred: {:?}", error),
+    //};
 
-    Rectangle::new(Point::new(0, 0), Size::new(128, 64))
-        .into_styled(on)
-        .draw(&mut display)
-        .unwrap();
-
-    let text_style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
-    Text::new("Nasha is a cutie!", Point::new(6, 24), text_style)
-        .draw(&mut display)
-        .unwrap();
-
-    let fill = PrimitiveStyle::with_fill(BinaryColor::On);
-
-    // Two lobes. NOTE: Circle::new takes the bounding-box TOP-LEFT + diameter,
-    // not the center — the single most common embedded-graphics gotcha.
-    Circle::new(Point::new(42, 30), 12)
-        .into_styled(fill)
-        .draw(&mut display)
-        .unwrap();
-    Circle::new(Point::new(54, 30), 12)
-        .into_styled(fill)
-        .draw(&mut display)
-        .unwrap();
-
-    // Bottom point: top edge spans the lobes' widest line, apex at the tip.
-    Triangle::new(Point::new(42, 36), Point::new(66, 36), Point::new(54, 52))
-        .into_styled(fill)
-        .draw(&mut display)
-        .unwrap();
-
-    display.flush().await.unwrap();
+    //display.clear();
+    //let on = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
+    //
+    //Rectangle::new(Point::new(0, 0), Size::new(128, 64))
+    //    .into_styled(on)
+    //    .draw(&mut display)
+    //    .unwrap();
+    //
+    //let text_style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
+    //Text::new("Nasha is a cutie!", Point::new(6, 24), text_style)
+    //    .draw(&mut display)
+    //    .unwrap();
+    //
+    //let fill = PrimitiveStyle::with_fill(BinaryColor::On);
+    //
+    //// Two lobes. NOTE: Circle::new takes the bounding-box TOP-LEFT + diameter,
+    //// not the center — the single most common embedded-graphics gotcha.
+    //Circle::new(Point::new(42, 30), 12)
+    //    .into_styled(fill)
+    //    .draw(&mut display)
+    //    .unwrap();
+    //Circle::new(Point::new(54, 30), 12)
+    //    .into_styled(fill)
+    //    .draw(&mut display)
+    //    .unwrap();
+    //
+    //// Bottom point: top edge spans the lobes' widest line, apex at the tip.
+    //Triangle::new(Point::new(42, 36), Point::new(66, 36), Point::new(54, 52))
+    //    .into_styled(fill)
+    //    .draw(&mut display)
+    //    .unwrap();
+    //
+    //display.flush().await.unwrap();
 }
 
 fn get_event_from_waitresult(wait_result: WaitResult<CommandEvent>) -> CommandEvent {
